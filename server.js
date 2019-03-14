@@ -332,7 +332,7 @@ function listUsers(req,res)
       writeResult(req, res, {'error' : err});
     else
     {
-      con.query("SELECT * from USER ORDER BY USER_LOGINS", function (err, result, fields) 
+      con.query("SELECT USER_ID,USER_EMAIL,USER_LOGINS from USER ORDER BY USER_LOGINS", function (err, result, fields) 
       {
         if (err) 
           writeResult(req, res, {'error' : err});
