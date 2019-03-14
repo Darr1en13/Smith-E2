@@ -18,7 +18,7 @@ var session = require('express-session');
 app.use(session({ secret: 'happy jungle', 
                   resave: false, 
                   saveUninitialized: false, 
-                  cookie: { maxAge: 60000 }}))
+                  cookie: { maxAge: 600000 }}));
 
 app.all('/', whoIsLoggedIn);                  
 app.all('/register', register);
@@ -28,22 +28,26 @@ app.all('/listSongs', listSongs);
 app.all('/addSong', addSong);
 app.all('/removeSong', removeSong);
 app.all('/clearSongs', clearSongs);
+app.all('/listUsers',listUsers);
 
 
-app.listen(process.env.PORT,  process.env.IP, startHandler())
+app.listen(process.env.PORT,  process.env.IP, startHandler());
 
 function startHandler()
 {
-  console.log('Server listening on port ' + process.env.PORT)
+  console.log('Server listening on port ' + process.env.PORT);
 }
 
 function listSongs(req, res)
 {
+ /*
   if (req.session.user == undefined)
   {
     writeResult(req, res, {'error' : "Please login."});
     return;
   }
+  OMMITING THIS MEANING IT WONT CHECK IF YOU'RE LOGGED IN.
+  */ 
 
   var con = mysql.createConnection(conInfo);
   con.connect(function(err) 
@@ -52,7 +56,7 @@ function listSongs(req, res)
       writeResult(req, res, {'error' : err});
     else
     {
-      con.query("SELECT * FROM SONG WHERE USER_ID = ? ORDER BY SONG_NAME", [req.session.user.result.id], function (err, result, fields) 
+      con.query("SELECT * FROM SONG WHERE SONG_RATING=? ORDER BY SONG_NAME",[req.query.rating] , function (err, result, fields) 
       {
         if (err) 
           writeResult(req, res, {'error' : err});
@@ -82,7 +86,7 @@ function addSong(req, res)
         writeResult(req, res, {'error' : err});
       else
       {
-        con.query('INSERT INTO SONG (SONG_NAME, USER_ID) VALUES (?, ?)', [req.query.song, req.session.user.result.id], function (err, result, fields) 
+        con.query('INSERT INTO SONG (SONG_NAME, USER_ID ,SONG_RATING) VALUES (?, ?, ?)', [req.query.song, req.session.user.result.id,req.query.rating], function (err, result, fields) 
         {
           if (err) 
             writeResult(req, res, {'error' : err});
@@ -265,12 +269,15 @@ function login(req, res)
           if(result.length == 1 && bcrypt.compareSync(req.query.password, result[0].USER_PASS))
           {
             req.session.user = {'result' : {'id': result[0].USER_ID, 'email': result[0].USER_EMAIL}};
+            logCount(req,res);
             writeResult(req, res, req.session.user);
           }
           else 
           {
             writeResult(req, res, {'error': "Invalid email/password"});
           }
+          
+          
         }
       });
     }
@@ -314,4 +321,48 @@ function validatePassword(pass)
     var re = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
     return re.test(pass);
   }
+}
+
+function listUsers(req,res)
+{
+  var con = mysql.createConnection(conInfo);
+  con.connect(function(err) 
+  {
+    if (err) 
+      writeResult(req, res, {'error' : err});
+    else
+    {
+      con.query("SELECT * from USER ORDER BY USER_LOGINS", function (err, result, fields) 
+      {
+        if (err) 
+          writeResult(req, res, {'error' : err});
+        else
+          writeResult(req, res, {'result' : result});
+      });
+    }
+  });
+  
+}
+
+function logCount(req,res)
+{
+  var con = mysql.createConnection(conInfo);
+  con.connect(function(err) 
+  {
+    if (err) 
+      writeResult(req, res, {'error' : err});
+    else
+    {
+      con.query("UPDATE USER SET USER_LOGINS = USER_LOGINS + 1 WHERE USER_ID = ?",[req.session.user.result.id], function (err, result, fields) 
+      {
+        if (err) 
+          writeResult(req, res, {'error' : err});
+        else
+         //writeResult(req, res, {'result' : result});
+         console.log("archived to database");
+      });
+    }
+  });
+  
+  
 }
